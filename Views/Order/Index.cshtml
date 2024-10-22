@@ -1,0 +1,137 @@
+﻿@model IEnumerable<SalesOrderApp.Models.Order>
+
+@{
+    ViewData["Title"] = "Sales Order";
+
+    int totalPagesToShow = 5; 
+    int startPage = Math.Max(1, ViewBag.CurrentPage - 2); 
+    int endPage = Math.Min(ViewBag.TotalPages, startPage + totalPagesToShow - 1);
+
+    if (endPage - startPage < totalPagesToShow - 1)
+    {
+        startPage = Math.Max(1, endPage - (totalPagesToShow - 1));
+    }
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form class="row g-3" id="form">
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="keywords" class="form-label">Keywords</label>
+                    </div>
+                    <div class="col-md-8">
+                        <input type="text" class="form-control" id="keywords" placeholder="Input Here" value="@ViewBag.SearchQuery">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="orderDate" class="form-label">Order Date</label>
+                    </div>
+                    <div class="col-md-8">
+                        <input type="date" class="form-control" id="orderDate" value="@ViewBag.OrderDate">
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 d-flex justify-content-end">
+                <button type="button" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="mb-3">
+    <a asp-controller="Order" asp-action="OrderForm" class="btn btn-danger">Add New Data</a>
+    <a asp-controller="Order" asp-action="ExportToExcel" asp-route-searchQuery="@ViewBag.SearchQuery" asp-route-orderDate="@ViewBag.OrderDate" class="btn btn-success">
+        <i class="fas fa-file-excel"></i> Export to Excel
+    </a>
+
+</div>
+
+<div class="table-responsive">
+
+    <table class="table table-bordered table-hover text-center">
+        <thead class="table-dark">
+            <tr>
+                <th>No</th>
+                <th>Action</th>
+                <th>Sales Order</th>
+                <th>Order Date</th>
+                <th>Customer</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model != null && Model.Any())
+            {
+                int index = (ViewBag.PageSize * (ViewBag.CurrentPage - 1) + 1);
+                foreach (var order in Model)
+                {
+                    <tr>
+                        <td>@index</td>
+                        <td>
+                            <a href="@Url.Action("OrderForm", new { orderId = order.Id })"><i class="fas fa-edit"></i></a>
+                            <a href="@Url.Action("DeleteOrder", new { orderId = order.Id })"><i class="fas fa-trash-alt"></i></a>
+                        </td>
+                        <td>@order.SalesOrderNumber</td>
+                        <td>@order.OrderDate.ToString("yyyy-MM-dd")</td> 
+                        <td>@order.Customer.Name</td> 
+                    </tr>
+                    index++;
+                }
+            }
+            else
+            {
+                <tr>
+                    <td colspan="5">No Orders Available</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+
+<div class="d-flex justify-content-between align-items-start">
+    <nav aria-label="Page navigation example">
+        <ul class="pagination">
+            <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                <a class="page-link" href="?searchQuery=@ViewBag.SearchQuery&orderDate=@ViewBag.OrderDate&pageNumber=@(ViewBag.CurrentPage - 1)">Previous</a>
+            </li>
+
+            @for (int i = startPage; i <= endPage; i++)
+            {
+                <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                    <a class="page-link" href="?searchQuery=@ViewBag.SearchQuery&orderDate=@ViewBag.OrderDate&pageNumber=@i">@i</a>
+                </li>
+            }
+
+            <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                <a class="page-link" href="?searchQuery=@ViewBag.SearchQuery&orderDate=@ViewBag.OrderDate&pageNumber=@(ViewBag.CurrentPage + 1)">Next</a>
+            </li>
+        </ul>
+    </nav>
+
+    <div>
+        <span>Showing @(ViewBag.PageSize * (ViewBag.CurrentPage - 1) + 1) - @(Math.Min(ViewBag.PageSize * ViewBag.CurrentPage, ViewBag.TotalOrders)) of @ViewBag.TotalOrders entries</span>
+    </div>
+</div>
+
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('form').submit(function (e) {
+                e.preventDefault(); // Mencegah pengiriman formulir secara default
+
+                var keywords = $("#keywords").val();
+                var orderDate = $("#orderDate").val();
+                var url = `?searchQuery=${keywords}&orderDate=${orderDate}`;
+
+                // Redirect ke URL dengan query string
+                window.location.href = url;
+            });
+        });
+    </script>
+}

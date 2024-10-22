@@ -1,0 +1,245 @@
+﻿@model SalesOrderApp.Models.Order
+
+@{
+    ViewData["Title"] = Model.Id != 0 ? "Edit Order" : "Add Order";
+}
+
+<form method="post" asp-controller="Order" asp-action="SaveOrder">
+    <input type="hidden" value="@Model.Id" name="Id" />
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="alert alert-danger">
+            <strong>Terjadi kesalahan!</strong><br />
+            <ul>
+                @foreach (var entry in ViewData.ModelState)
+                {
+                    foreach (var error in entry.Value.Errors)
+                    {
+                        <li>@error.ErrorMessage</li>
+                    }
+                }
+            </ul>
+        </div>
+    }
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-center bg-dark text-white">
+            <h5>Sales Order Information</h5>
+        </div>
+        <div class="card-body row g-3">
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4 ">
+                        <label for="salesOrderNumber" class="form-label">Sales Order Number <em>*</em></label>
+                    </div>
+                    <div class="col-md-8">
+                        <input type="text" class="form-control" id="salesOrderNumber" name="SalesOrderNumber" placeholder="Input Here"
+                               value="@Model.SalesOrderNumber" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4 ">
+                        <label for="customer" class="form-label">Customer <em>*</em></label>
+                    </div>
+                    <div class="col-md-8">
+                        <select class="form-control" asp-for="CustomerId" asp-items="ViewBag.Customers" required>
+                            <option value="">Select Customer</option>
+                        </select>
+
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4 ">
+                        <label for="orderDate" class="form-label">Order Date <em>*</em></label>
+                    </div>
+                    <div class="col-md-8">
+                        <input type="date" class="form-control" id="orderDate" name="OrderDate"
+                               value="@(Model.OrderDate.ToString("yyyy-MM-dd") == "0001-01-01" ? DateTime.Today.ToString("yyyy-MM-dd") : Model.OrderDate.ToString("yyyy-MM-dd"))" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-4 ">
+                        <label for="address" class="form-label">Address</label>
+                    </div>
+                    <div class="col-md-8">
+                        <textarea class="form-control" name="Address" id="address" rows="3">@Model.Address</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <input type="hidden" id="orderItemsJson" name="orderItemsJson" />
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-center bg-dark text-white">
+            <h5>Detail Item Information</h5>
+        </div>
+
+        <div class="card-body">
+            <div class="mb-3">
+                <button id="addItemBtn" class="btn btn-danger">Add Item</button>
+            </div>
+
+            <div class="table-responsive">
+                <table id="itemTable" class="table table-bordered table-hover text-center">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>No</th>
+                            <th>Action</th>
+                            <th>Item Name</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.OrderItems != null && Model.OrderItems.Any())
+                        {
+                            int itemIndex = 1;
+                            foreach (var item in Model.OrderItems)
+                            {
+                                <tr>
+                                    <td>@itemIndex</td>
+                                    <td>
+                                        <a class="btn btn-success save-btn"><i class="fas fa-save"></i></a>
+                                        <a class="btn btn-danger cancel-btn"><i class="fas fa-remove"></i></a>
+                                    </td>
+                                    <td><input type="text" id="itemName-input" class="form-control ItemName-input" placeholder="Item Name" required value="@item.ProductName" /></td>
+                                    <td><input type="text" id="qty-input" class="form-control qty-input" placeholder="Qty" required oninput="formatCurrency(this); calculateTotal(this)" value="@item.Quantity" /></td>
+                                    <td><input type="text" id="price-input" class="form-control price-input" placeholder="Price" required oninput="formatCurrency(this); calculateTotal(this)" value="@Math.Round(item.Price, 2)" /></td>
+                                    <td><input type="text" id="total-input" class="form-control total-input" placeholder="Total" value="@Math.Round(@item.Total, 2)" readonly /></td>
+                                </tr>
+                                itemIndex++;
+                            }
+                        }
+                        else
+                        {
+                            <tr id="noItemRow">
+                                <td colspan="6">No Item Added</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-center mt-4">
+                <button type="submit" class="btn btn-danger">Save</button>
+                <a asp-controller="Order" asp-action="Index" class="ms-2 btn btn-primary">Close</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+
+@section Scripts {
+    <script>
+        function formatCurrency(input) {
+            let value = input.value.replace(/[^\d.-]/g, ''); 
+            if (value) {
+                value = parseFloat(value).toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2
+                });
+            }
+            input.value = value;
+        }
+
+        function calculateTotal(input) {
+            const row = $(input).closest('tr');
+            const qty = row.find('.qty-input').val().replace(/[^\d.-]/g, '') || 1;
+            const price = row.find('.price-input').val().replace(/[^\d.-]/g, '') || 1;
+
+            const total = (parseFloat(qty) * parseFloat(price)).toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            });
+
+            row.find('.total-input').val(total);
+        }
+
+
+        $(document).ready(function () {
+            let itemCount = 0;
+
+            $('#addItemBtn').click(function () {
+                $('#noItemRow').hide();
+
+                itemCount++;
+                $('#itemTable tbody').append(`
+                                    <tr>
+                                        <td>${itemCount}</td>
+                                        <td>
+                                            <a class="btn btn-success save-btn"><i class="fas fa-save"></i></a>
+                                            <a class="btn btn-danger cancel-btn"><i class="fas fa-remove"></i></a>
+                                        </td>
+                                        <td><input type="text" id="itemName-input" class="form-control itemName-input" placeholder="Item Name" required /></td>
+                                                <td><input type="text" id="qty-input" class="form-control qty-input" placeholder="Qty" required oninput="formatCurrency(this); calculateTotal(this)" /></td>
+                                        <td><input type="text" id="price-input" class="form-control price-input" placeholder="Price" required oninput="formatCurrency(this); calculateTotal(this)" /></td>
+                                        <td><input type="text" id="total-input" class="form-control total-input" placeholder="Total" readonly /></td>
+                                    </tr>
+                                `);
+            });
+
+            $(document).on('click', '.cancel-btn', function () {
+                const row = $(this).closest('tr');
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: "You won't be able to revert this!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, delete it!',
+                    cancelButtonText: 'No, cancel!'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        row.remove(); 
+                        if ($('#itemTable tbody tr').length === 0) {
+                            $('#noItemRow').show();
+                        }
+                    }
+                });
+            });
+
+            $('form').submit(function (e) {
+                e.preventDefault(); 
+
+                let orderItems = [];
+                $('#itemTable tbody tr').each(function () {
+                    if ($(this).is('#noItemRow')) return;
+
+                    const itemName = $(this).find('#itemName-input').val();
+                    const qty = $(this).find('#qty-input').val().replace(/[^\d.-]/g, '');
+                    const price = $(this).find('#price-input').val().replace(/[^\d.-]/g, '');
+
+                    if (itemName && qty && price) {
+                        orderItems.push({
+                            ProductName: itemName,
+                            Quantity: qty,
+                            Price: price
+                        });
+                    }
+                });
+
+                if (orderItems.length === 0) {
+                    alert("Please add at least one item.");
+                    return false; 
+                }
+
+                $('#orderItemsJson').val(JSON.stringify(orderItems));
+
+                this.submit(); 
+            });
+
+        });
+    </script>
+}
